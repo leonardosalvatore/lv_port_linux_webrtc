@@ -5,7 +5,10 @@ extern "C" {
 /*********************
  *      INCLUDES
  *********************/
+#include <gst/gst.h>
+#include <unistd.h>
 #include "lvgl.h"
+#include <SDL2/SDL.h>
 
 #include "anim/lv_example_anim.h"
 #include "event/lv_example_event.h"
@@ -51,11 +54,6 @@ typedef struct {
     lv_subject_t position_subject;
 } event_data_t;
 
-static void volume_setter_create(event_data_t * event_data);
-static void control_bar_create(event_data_t * event_data);
-static void update_duration_label(lv_obj_t * label, uint32_t duration);
-static void volume_observer_cb(lv_observer_t * observer, lv_subject_t * subject);
-static void update_position_slider(lv_timer_t * timer);
 static void play_pause_pressed(lv_event_t * e);
 static void stream_state_changed(lv_event_t * e);
 
@@ -85,14 +83,6 @@ void lv_example_gstreamer_1(void)
 
     lv_obj_center(event_data.streamer);
 
-    /* Create a slider to modify the stream volume and a label to visualize the current value */
-    volume_setter_create(&event_data);
-
-    /* Create a slider to see the position in the stream with 2 text label on each side
-     * One for the current position in the stream and the other for the total duration of the stream
-     * Also add a pause/play button*/
-    control_bar_create(&event_data);
-
     /* The LV_EVENT_STATE_CHANGED will fire when the stream is ready at that point we can query the stream
      * information like its resolution and duration. See `streamer_ready` */
     lv_obj_add_event_cb(event_data.streamer, stream_state_changed, LV_EVENT_STATE_CHANGED, &event_data);
@@ -100,111 +90,6 @@ void lv_example_gstreamer_1(void)
     /* Play the stream immediately */
     lv_gstreamer_play(event_data.streamer);
 
-    /* Create a timer that will update the slider position based on the stream position
-     * Make it 3 times faster than the refresh rate for a smoother effect */
-    lv_timer_create(update_position_slider, LV_DEF_REFR_PERIOD, &event_data);
-}
-
-static void volume_setter_create(event_data_t * event_data)
-{
-    lv_obj_t * cont = lv_obj_create(lv_screen_active());
-    lv_obj_remove_style_all(cont);
-    lv_obj_set_style_pad_all(cont, 8, 0);
-    lv_obj_set_style_pad_gap(cont, 8, 0);
-    lv_obj_set_style_radius(cont, 8, 0);
-    lv_obj_set_style_bg_color(cont, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(cont, LV_OPA_70, 0);
-    lv_obj_set_size(cont, 40, lv_pct(60));
-    lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_align(cont, LV_ALIGN_RIGHT_MID, -8, -40);
-
-    lv_obj_t * volume_slider = lv_slider_create(cont);
-    lv_obj_set_size(volume_slider, 13, LV_PCT(50));
-    lv_obj_set_flex_grow(volume_slider, 1);
-
-    lv_obj_t * volume_label = lv_label_create(cont);
-    lv_obj_set_style_text_align(volume_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_width(volume_label, 50);
-
-    /* We use `lv_subject` to simplify binding the data between multiple objects.
-     * Here the data is shared between the slider, the label and the gstreamer widgets */
-    static lv_subject_t volume_subject;
-    lv_subject_init_int(&volume_subject, 50);
-    lv_subject_add_observer_obj(&volume_subject, volume_observer_cb, event_data->streamer, NULL);
-    lv_slider_bind_value(volume_slider, &volume_subject);
-    lv_label_bind_text(volume_label, &volume_subject, LV_SYMBOL_VOLUME_MID "\n%3" LV_PRId32 "%%");
-
-}
-
-
-static void control_bar_create(event_data_t * event_data)
-{
-    lv_subject_init_int(&event_data->position_subject, 0);
-
-    lv_obj_t * cont = lv_obj_create(lv_screen_active());
-    lv_obj_remove_style_all(cont);
-    lv_obj_set_style_pad_all(cont, 8, 0);
-    lv_obj_set_style_margin_hor(cont, 8, 0);
-    lv_obj_set_style_pad_gap(cont, 8, 0);
-    lv_obj_set_style_radius(cont, 8, 0);
-    lv_obj_set_style_bg_color(cont, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(cont, LV_OPA_70, 0);
-
-    lv_obj_set_size(cont, lv_pct(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_align(cont, LV_ALIGN_BOTTOM_MID, 0, -10);
-
-    event_data->position_label = lv_label_create(cont);
-    lv_obj_set_width(event_data->position_label, 80);
-    lv_label_set_text_static(event_data->position_label, "0:00:000");
-
-    /* Create a button a button to play/pause the stream */
-    event_data->pp_button = lv_button_create(cont);
-    lv_obj_center(event_data->pp_button);
-    lv_obj_add_event_cb(event_data->pp_button, play_pause_pressed, LV_EVENT_CLICKED, event_data);
-    event_data->button_label = lv_label_create(event_data->pp_button);
-    lv_label_set_text_static(event_data->button_label, LV_SYMBOL_PAUSE);
-
-    lv_obj_t * position_slider = lv_bar_create(cont);
-    lv_bar_set_range(position_slider, 0, 1000);
-    lv_obj_set_flex_grow(position_slider, 1);
-    lv_slider_bind_value(position_slider, &event_data->position_subject);
-
-    event_data->duration_label = lv_label_create(cont);
-    lv_obj_set_width(event_data->duration_label, 80);
-    lv_label_set_text_static(event_data->duration_label, "0:00:000");
-    lv_obj_set_style_text_align(event_data->duration_label, LV_TEXT_ALIGN_RIGHT, 0);
-
-}
-
-static void update_duration_label(lv_obj_t * label, uint32_t duration)
-{
-    const uint32_t minutes = duration / 60000;
-    const uint32_t seconds = (duration / 1000) % 60;
-    const uint32_t milliseconds = duration % 1000;
-
-    lv_label_set_text_fmt(label, "%" LV_PRIu32 ":%02" LV_PRIu32 ":%03" LV_PRIu32, minutes, seconds, milliseconds);
-}
-
-static void volume_observer_cb(lv_observer_t * observer, lv_subject_t * subject)
-{
-    lv_obj_t * streamer = lv_observer_get_target_obj(observer);
-    int32_t volume = lv_subject_get_int(subject);
-    LV_LOG_USER("Setting volume %" PRId32, volume);
-    lv_gstreamer_set_volume(streamer, (uint8_t)volume);
-}
-
-static void update_position_slider(lv_timer_t * timer)
-{
-    event_data_t * event_data = (event_data_t *)lv_timer_get_user_data(timer);
-
-    uint32_t duration = lv_gstreamer_get_duration(event_data->streamer);
-    uint32_t position = lv_gstreamer_get_position(event_data->streamer);
-    int32_t position_perc = lv_map(position, 0, duration, 0, 1000);
-    lv_subject_set_int(&event_data->position_subject, position_perc);
-    update_duration_label(event_data->position_label, position);
 }
 
 
@@ -242,41 +127,69 @@ static void stream_state_changed(lv_event_t * e)
                 LV_LOG_USER("\tStream resolution %" LV_PRId32 "x%" LV_PRId32, lv_image_get_src_width(streamer),
                             lv_image_get_src_height(streamer));
                 LV_LOG_USER("\tStream duration %" LV_PRIu32, duration);
-                update_duration_label(event_data->duration_label, duration);
                 break;
             }
         case LV_GSTREAMER_STREAM_STATE_END:
             LV_LOG_USER("Stream is over");
-            lv_label_set_text_static(event_data->button_label, LV_SYMBOL_REFRESH);
             break;
         case LV_GSTREAMER_STREAM_STATE_PLAY:
-            lv_label_set_text_static(event_data->button_label, LV_SYMBOL_PAUSE);
+            LV_LOG_USER("Stream is playing");
             break;
         case LV_GSTREAMER_STREAM_STATE_PAUSE:
+            LV_LOG_USER("Stream is paused");
+            break;
         case LV_GSTREAMER_STREAM_STATE_STOP:
-            lv_label_set_text_static(event_data->button_label, LV_SYMBOL_PLAY);
+            LV_LOG_USER("Stream is stopped");
             break;
     }
 }
 
-#else
-
-void lv_example_gstreamer_1(void)
-{
-    /*TODO
-     *fallback for online examples*/
-
-    lv_obj_t * label = lv_label_create(lv_screen_active());
-    lv_label_set_text(label, "GStreamer web support is coming soon");
-    lv_obj_center(label);
-}
-
 #endif
-
 #endif
 
 int main(int argc, char *argv[])
 {
-    lv_example_gstreamer_1();
+    /* Initialize LVGL */
+    lv_init();
+
+    /* Initialize GStreamer early to avoid races in plugin init */
+    gst_init(&argc, &argv);
+    LV_LOG_USER("GStreamer initialized");
+    
+    /* Initialize display driver */
+    lv_display_t * display = NULL;
+    
+    /* Create Wayland display  */
+    display = lv_wayland_window_create(800, 600, "LVGL GStreamer Example", NULL);
+    if (!display) {
+        LV_LOG_USER("Failed to create display");
+        return 1;
+    }
+
+    /* Create simple UI only if display is available */
+    if (lv_screen_active()) {
+        LV_LOG_USER("Screen is active, creating UI");
+        lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x003a57), LV_PART_MAIN);
+
+        lv_obj_t * label = lv_label_create(lv_screen_active());
+        lv_label_set_text(label, "Hello LVGL with GStreamer");
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), LV_PART_MAIN);
+        lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        
+        /* Run the GStreamer example */
+        lv_example_gstreamer_1();
+        
+        /* Main loop (simplified - in production you'd want a proper event loop) */
+        LV_LOG_USER("Entering main loop");
+        while(1) {
+            lv_timer_handler();
+            lv_tick_inc(5);
+            usleep(5000);
+        }
+    }
+    else {
+        LV_LOG_USER("No active screen available");
+    }
+    
     return 0;
 }
