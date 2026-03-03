@@ -1,3 +1,3 @@
 [submodule "lvgl"]
-	path = lvgl
-	url = ../lvgl_webrtc
+       path = lvgl
+       uri = https://github.com/leonardosalvatore/lvgl_webrtc.git
