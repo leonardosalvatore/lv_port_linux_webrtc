@@ -1,3 +1,5 @@
 [submodule "lvgl"]
        path = lvgl
-       url = https://github.com/leonardosalvatore/lvgl_webrtc.git
+       url = ../lvgl_webrtc
+#       url = https://github.com/leonardosalvatore/lvgl_webrtc.git
+#       branch = webrtc_rust_plugin
