@@ -183,8 +183,6 @@ int main(int argc, char *argv[])
         LV_LOG_USER("Entering main loop");
         while(1) {
             lv_timer_handler();
-            lv_tick_inc(5);
-            usleep(5000);
         }
     }
     else {
