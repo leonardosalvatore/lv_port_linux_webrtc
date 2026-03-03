@@ -43,29 +43,23 @@ pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 pkg_check_modules(GSTREAMER_VIDEO REQUIRED gstreamer-video-1.0)
 pkg_check_modules(GSTREAMER_APP REQUIRED gstreamer-app-1.0)
 
-# Find Wayland and related packages (LVGL has wayland support built in)
-pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
-pkg_check_modules(WAYLAND_CURSOR REQUIRED wayland-cursor)
-pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
+# SDL dependencies
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIRS})
 
-add_executable(main main.c "${CMAKE_SOURCE_DIR}/../build/protocols/wayland_xdg_shell.c")
+add_executable(main main.c)
 target_include_directories(main PUBLIC 
 	${LVGL_INCLUDE_DIRS} 
 	${GSTREAMER_INCLUDE_DIRS} 
 	${GSTREAMER_VIDEO_INCLUDE_DIRS} 
 	${GSTREAMER_APP_INCLUDE_DIRS}
-	${WAYLAND_CLIENT_INCLUDE_DIRS}
-	${WAYLAND_CURSOR_INCLUDE_DIRS}
-	${XKBCOMMON_INCLUDE_DIRS}
-	"${CMAKE_SOURCE_DIR}/../build/protocols")
+	${SDL2_INCLUDE_DIRS})
 target_link_libraries(main PUBLIC 
 	${LVGL_LIBRARIES} 
 	${GSTREAMER_LIBRARIES} 
 	${GSTREAMER_VIDEO_LIBRARIES} 
 	${GSTREAMER_APP_LIBRARIES}
-	${WAYLAND_CLIENT_LIBRARIES}
-	${WAYLAND_CURSOR_LIBRARIES}
-	${XKBCOMMON_LIBRARIES}
+	${SDL2_LIBRARIES}
 	m stdc++)
 
 add_custom_target (run COMMAND ${EXECUTABLE_OUTPUT_PATH}/main DEPENDS main)

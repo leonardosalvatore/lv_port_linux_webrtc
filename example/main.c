@@ -6,6 +6,7 @@ extern "C" {
  *      INCLUDES
  *********************/
 #include <gst/gst.h>
+#define SDL_MAIN_HANDLED
 #include <unistd.h>
 #include "lvgl.h"
 #include <SDL2/SDL.h>
@@ -65,6 +66,11 @@ void lv_example_gstreamer_1(void)
     static event_data_t event_data;
 
     event_data.streamer = lv_gstreamer_create(lv_screen_active());
+    
+    if (!event_data.streamer) {
+        LV_LOG_USER("ERROR: Failed to create GStreamer widget");
+        return;
+    }
 
     /* the gstreamer widget inherits the `lv_image` widget,
      * meaning you can also provide it lv_image functions, like
@@ -78,16 +84,23 @@ void lv_example_gstreamer_1(void)
      * web streams (http://, https://), RTSP streams (rtsp://), UDP streams (udp://),
      * and many others. GStreamer's uridecodebin automatically selects the appropriate
      * source element and decoder based on the URI scheme and media format. */
-    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC , LV_GSTREAMER_PROPERTY_WEBRTCSRC, "ws://10.83.113.218:8443");
+    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC , LV_GSTREAMER_PROPERTY_WEBRTCSRC, "ws://localhost:8443");
+    LV_LOG_USER("GStreamer source set to WebRTC");
 
+    if (!event_data.streamer) {
+        LV_LOG_USER("ERROR: Failed to set GStreamer source");
+        return;
+    }
+
+    lv_obj_set_size(event_data.streamer, 640, 480);
     lv_obj_center(event_data.streamer);
 
-    /* The LV_EVENT_STATE_CHANGED will fire when the stream is ready at that point we can query the stream
-     * information like its resolution and duration. See `streamer_ready` */
+    /* The LV_EVENT_STATE_CHANGED will fire when the stream is ready */
     lv_obj_add_event_cb(event_data.streamer, stream_state_changed, LV_EVENT_STATE_CHANGED, &event_data);
 
     /* Play the stream immediately */
     lv_gstreamer_play(event_data.streamer);
+    LV_LOG_USER("GStreamer stream started successfully");
 
 }
 
@@ -107,6 +120,7 @@ static void play_pause_pressed(lv_event_t * e)
         lv_gstreamer_pause(event_data->streamer);
     }
 }
+
 static void stream_state_changed(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -151,9 +165,8 @@ int main(int argc, char *argv[])
     /* Initialize LVGL */
     lv_init();
 
-    
-    /* Create Wayland display  */
-    lv_display_t * display = lv_wayland_window_create(800, 600, "LVGL GStreamer Example", NULL);
+
+    lv_display_t * display = lv_sdl_window_create(800, 600);
     if (!display) {
         LV_LOG_USER("Failed to create display");
         return 1;
@@ -172,11 +185,25 @@ int main(int argc, char *argv[])
         /* Run the GStreamer example */
         lv_example_gstreamer_1();
         
-        /* Main loop (simplified - in production you'd want a proper event loop) */
+        /* Main loop with proper SDL event handling */
         LV_LOG_USER("Entering main loop");
-        while(1) {
+        bool quit = false;
+        SDL_Event event;
+        
+        while(!quit) {
+            /* Handle SDL events */
+            while(SDL_PollEvent(&event)) {
+                if(event.type == SDL_QUIT) {
+                    quit = true;
+                }
+                /* SDL backend handles input events automatically */
+            }
+            
+            /* Handle LVGL tasks */
             lv_timer_handler();
-            lv_tick_inc(5); /* Simulate a tick every 5 ms */
+            
+            /* Limit to ~60 FPS */
+            SDL_Delay(5);
         }
     }
     else {
