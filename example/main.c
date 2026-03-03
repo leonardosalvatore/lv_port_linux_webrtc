@@ -78,8 +78,11 @@ void lv_example_gstreamer_1(void)
      * web streams (http://, https://), RTSP streams (rtsp://), UDP streams (udp://),
      * and many others. GStreamer's uridecodebin automatically selects the appropriate
      * source element and decoder based on the URI scheme and media format. */
-    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_URI_DECODE, LV_GSTREAMER_PROPERTY_URI_DECODE,
-                         "https://gstreamer.freedesktop.org/data/media/sintel_trailer-480p.webm");
+    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC , LV_GSTREAMER_PROPERTY_WEBRTCSRC,
+                         "");
+
+//    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC, NULL,"");
+
 
     lv_obj_center(event_data.streamer);
 
