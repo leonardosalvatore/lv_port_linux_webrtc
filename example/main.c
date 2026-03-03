@@ -152,9 +152,6 @@ int main(int argc, char *argv[])
     /* Initialize LVGL */
     lv_init();
 
-    /* Initialize GStreamer early to avoid races in plugin init */
-    gst_init(&argc, &argv);
-    LV_LOG_USER("GStreamer initialized");
     
     /* Initialize display driver */
     lv_display_t * display = NULL;
