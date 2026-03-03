@@ -78,11 +78,7 @@ void lv_example_gstreamer_1(void)
      * web streams (http://, https://), RTSP streams (rtsp://), UDP streams (udp://),
      * and many others. GStreamer's uridecodebin automatically selects the appropriate
      * source element and decoder based on the URI scheme and media format. */
-    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC , LV_GSTREAMER_PROPERTY_WEBRTCSRC,
-                         "");
-
-//    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC, NULL,"");
-
+    lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC , LV_GSTREAMER_PROPERTY_WEBRTCSRC, "ws://10.83.113.218:8443");
 
     lv_obj_center(event_data.streamer);
 
@@ -156,11 +152,8 @@ int main(int argc, char *argv[])
     lv_init();
 
     
-    /* Initialize display driver */
-    lv_display_t * display = NULL;
-    
     /* Create Wayland display  */
-    display = lv_wayland_window_create(800, 600, "LVGL GStreamer Example", NULL);
+    lv_display_t * display = lv_wayland_window_create(800, 600, "LVGL GStreamer Example", NULL);
     if (!display) {
         LV_LOG_USER("Failed to create display");
         return 1;
@@ -183,6 +176,7 @@ int main(int argc, char *argv[])
         LV_LOG_USER("Entering main loop");
         while(1) {
             lv_timer_handler();
+            lv_tick_inc(5); /* Simulate a tick every 5 ms */
         }
     }
     else {
