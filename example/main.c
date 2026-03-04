@@ -82,6 +82,7 @@ void lv_example_gstreamer_1(void)
      * Using the `URI` "factory", we can
      * specify various URI schemes as media sources including local files (file://),
      * web streams (http://, https://), RTSP streams (rtsp://), UDP streams (udp://),
+     * WebRTC streams (ws://IPSignaller:port,)
      * and many others. GStreamer's uridecodebin automatically selects the appropriate
      * source element and decoder based on the URI scheme and media format. */
     lv_gstreamer_set_src(event_data.streamer, LV_GSTREAMER_FACTORY_WEBRTCSRC , LV_GSTREAMER_PROPERTY_WEBRTCSRC, "ws://localhost:8443");
